@@ -145,10 +145,8 @@ def insert_submission(conn, record: Dict[str, Any]) -> None:
         cur.execute(
             """
             INSERT INTO SUBMISSIONS
-            (JOIN_CODE, STUDENT_NAME, SECTION, LANGUAGE, CODE, AI_MODEL, TOTAL_SCORE, FEEDBACK,
-             OVERALL_100, PER_CRITERION, CODE_LINES, LLM_LATENCY_MS, LLM_ERROR, TOKENS_PROMPT, TOKENS_COMPLETION)
-            SELECT %s, %s, %s, %s, %s, %s, %s, PARSE_JSON(%s),
-                   %s, PARSE_JSON(%s), %s, %s, %s, %s, %s
+            (JOIN_CODE, STUDENT_NAME, SECTION, LANGUAGE, CODE, AI_MODEL, TOTAL_SCORE, FEEDBACK)
+            SELECT %s, %s, %s, %s, %s, %s, %s, PARSE_JSON(%s)
             """,
             (
                 record["join_code"],
@@ -159,13 +157,6 @@ def insert_submission(conn, record: Dict[str, Any]) -> None:
                 record["ai_model"],
                 record["total_score"],
                 json.dumps(record["feedback_json"]),
-                record.get("overall_100"),
-                json.dumps(record.get("per_criterion", [])),
-                record.get("code_lines"),
-                record.get("llm_latency_ms"),
-                record.get("llm_error"),
-                record.get("tokens_prompt"),
-                record.get("tokens_completion"),
             ),
         )
     conn.commit()
@@ -207,3 +198,4 @@ def list_syllabi(conn, limit: int = 50) -> List[Dict[str, Any]]:
             return []
         keys = [c[0] for c in cur.description]
         return [dict(zip(keys, r)) for r in rows]
+
