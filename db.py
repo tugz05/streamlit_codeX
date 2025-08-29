@@ -63,6 +63,23 @@ def ensure_schema(conn) -> None:
                 FEEDBACK VARIANT
             )
         """)
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS MODULES (
+            ID STRING DEFAULT UUID_STRING(),
+            TITLE STRING,
+            SUBJECT STRING,
+            LEVEL STRING,
+            DURATION STRING,
+            LEARNING_OUTCOMES VARIANT,
+            LESSONS VARIANT,
+            ACTIVITIES VARIANT,
+            RUBRIC VARIANT,
+            RESOURCES VARIANT,
+            ANSWERS VARIANT,
+            RAW_JSON VARIANT,
+            CREATED_AT TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
+        )
+    """)
 
 def insert_activity(conn, join_code: str, title: str, instruction: str, max_score: float, criteria: List[Dict[str, Any]]) -> None:
     with conn.cursor() as cur:
@@ -152,3 +169,4 @@ def leaderboard(conn, join_code: str) -> List[Dict[str, Any]]:
         rows = cur.fetchall()
         keys = [c[0] for c in cur.description]
         return [dict(zip(keys, r)) for r in rows]
+
