@@ -6,3 +6,4 @@ altair
 matplotlib
 python-dotenv
 openai
+snowflake-connector-python>=3.10.1
