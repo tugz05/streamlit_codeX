@@ -11,7 +11,7 @@ from openai import OpenAI
 from config import get_config
 from db import get_snowflake_conn, ensure_schema
 
-PAGE_TITLE = "💬 Data Chatbot — (Snowflake-Only)"
+PAGE_TITLE = "💬 Data Chatbot"
 st.set_page_config(page_title=PAGE_TITLE, page_icon="💬", layout="wide")
 st.title(PAGE_TITLE)
 
