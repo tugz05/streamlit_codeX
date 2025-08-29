@@ -223,5 +223,27 @@ def list_modules(conn, limit: int = 50) -> List[Dict[str, Any]]:
         keys = [c[0] for c in cur.description]
         return [dict(zip(keys, r)) for r in rows]
 
+# ----- Syllabi -----
+def insert_syllabus(conn, title: str, level: str, weeks: int, modality: str, inputs: Dict[str, Any], syllabus: Dict[str, Any]) -> None:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO SYLLABI (TITLE, LEVEL, WEEKS, MODALITY, INPUTS, SYLLABUS)
+            SELECT %s, %s, %s, %s, PARSE_JSON(%s), PARSE_JSON(%s)
+            """,
+            (title, level, int(weeks), modality, json.dumps(inputs), json.dumps(syllabus)),
+        )
+    conn.commit()
+
+def list_syllabi(conn, limit: int = 50) -> List[Dict[str, Any]]:
+    with conn.cursor() as cur:
+        cur.execute(
+            f"SELECT TITLE, LEVEL, WEEKS, MODALITY, CREATED_AT FROM SYLLABI ORDER BY CREATED_AT DESC LIMIT {int(limit)}"
+        )
+        rows = cur.fetchall()
+        if not rows:
+            return []
+        keys = [c[0] for c in cur.description]
+        return [dict(zip(keys, r)) for r in rows]
 
 
