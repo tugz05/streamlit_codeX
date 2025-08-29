@@ -29,6 +29,7 @@ def get_snowflake_conn(cfg: AppConfig):
 
 def ensure_schema(conn) -> None:
     with conn.cursor() as cur:
+        # Activities / Participants / Submissions (existing)
         cur.execute("""
             CREATE TABLE IF NOT EXISTS ACTIVITIES (
                 ID STRING DEFAULT UUID_STRING(),
@@ -60,27 +61,19 @@ def ensure_schema(conn) -> None:
                 CODE STRING,
                 AI_MODEL STRING,
                 TOTAL_SCORE FLOAT,
-                FEEDBACK VARIANT
+                FEEDBACK VARIANT,
+                -- Optional analytics columns (nullable)
+                OVERALL_100 FLOAT,
+                PER_CRITERION VARIANT,
+                CODE_LINES INTEGER,
+                LLM_LATENCY_MS INTEGER,
+                LLM_ERROR STRING,
+                TOKENS_PROMPT INTEGER,
+                TOKENS_COMPLETION INTEGER
             )
         """)
+        # NEW: Syllabi
         cur.execute("""
-        CREATE TABLE IF NOT EXISTS MODULES (
-            ID STRING DEFAULT UUID_STRING(),
-            TITLE STRING,
-            SUBJECT STRING,
-            LEVEL STRING,
-            DURATION STRING,
-            LEARNING_OUTCOMES VARIANT,
-            LESSONS VARIANT,
-            ACTIVITIES VARIANT,
-            RUBRIC VARIANT,
-            RESOURCES VARIANT,
-            ANSWERS VARIANT,
-            RAW_JSON VARIANT,
-            CREATED_AT TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
-        )
-    """)
-         cur.execute("""
             CREATE TABLE IF NOT EXISTS SYLLABI (
                 ID STRING DEFAULT UUID_STRING(),
                 TITLE STRING,
@@ -93,6 +86,7 @@ def ensure_schema(conn) -> None:
             )
         """)
 
+# ----- Activities -----
 def insert_activity(conn, join_code: str, title: str, instruction: str, max_score: float, criteria: List[Dict[str, Any]]) -> None:
     with conn.cursor() as cur:
         cur.execute(
@@ -151,8 +145,10 @@ def insert_submission(conn, record: Dict[str, Any]) -> None:
         cur.execute(
             """
             INSERT INTO SUBMISSIONS
-            (JOIN_CODE, STUDENT_NAME, SECTION, LANGUAGE, CODE, AI_MODEL, TOTAL_SCORE, FEEDBACK)
-            SELECT %s, %s, %s, %s, %s, %s, %s, PARSE_JSON(%s)
+            (JOIN_CODE, STUDENT_NAME, SECTION, LANGUAGE, CODE, AI_MODEL, TOTAL_SCORE, FEEDBACK,
+             OVERALL_100, PER_CRITERION, CODE_LINES, LLM_LATENCY_MS, LLM_ERROR, TOKENS_PROMPT, TOKENS_COMPLETION)
+            SELECT %s, %s, %s, %s, %s, %s, %s, PARSE_JSON(%s),
+                   %s, PARSE_JSON(%s), %s, %s, %s, %s, %s
             """,
             (
                 record["join_code"],
@@ -163,6 +159,13 @@ def insert_submission(conn, record: Dict[str, Any]) -> None:
                 record["ai_model"],
                 record["total_score"],
                 json.dumps(record["feedback_json"]),
+                record.get("overall_100"),
+                json.dumps(record.get("per_criterion", [])),
+                record.get("code_lines"),
+                record.get("llm_latency_ms"),
+                record.get("llm_error"),
+                record.get("tokens_prompt"),
+                record.get("tokens_completion"),
             ),
         )
     conn.commit()
@@ -179,47 +182,6 @@ def leaderboard(conn, join_code: str) -> List[Dict[str, Any]]:
             (join_code,),
         )
         rows = cur.fetchall()
-        keys = [c[0] for c in cur.description]
-        return [dict(zip(keys, r)) for r in rows]
-
-def insert_module(conn, record: Dict[str, Any]) -> None:
-    with conn.cursor() as cur:
-        cur.execute(
-            """
-            INSERT INTO MODULES
-            (TITLE, SUBJECT, LEVEL, DURATION, LEARNING_OUTCOMES, LESSONS, ACTIVITIES, RUBRIC, RESOURCES, ANSWERS, RAW_JSON)
-            SELECT %s, %s, %s, %s,
-                   PARSE_JSON(%s), PARSE_JSON(%s), PARSE_JSON(%s), PARSE_JSON(%s), PARSE_JSON(%s), PARSE_JSON(%s), PARSE_JSON(%s)
-            """,
-            (
-                record.get("title"),
-                record.get("subject"),
-                record.get("level"),
-                record.get("duration"),
-                json.dumps(record.get("learning_outcomes", [])),
-                json.dumps(record.get("lessons", [])),
-                json.dumps(record.get("activities", [])),
-                json.dumps(record.get("rubric", [])),
-                json.dumps(record.get("resources", [])),
-                json.dumps(record.get("answers", [])),
-                json.dumps(record.get("raw_json", {})),
-            ),
-        )
-    conn.commit()
-
-def list_modules(conn, limit: int = 50) -> List[Dict[str, Any]]:
-    with conn.cursor() as cur:
-        cur.execute(
-            f"""
-            SELECT TITLE, SUBJECT, LEVEL, DURATION, CREATED_AT
-            FROM MODULES
-            ORDER BY CREATED_AT DESC
-            LIMIT {int(limit)}
-            """
-        )
-        rows = cur.fetchall()
-        if not rows:
-            return []
         keys = [c[0] for c in cur.description]
         return [dict(zip(keys, r)) for r in rows]
 
@@ -245,5 +207,3 @@ def list_syllabi(conn, limit: int = 50) -> List[Dict[str, Any]]:
             return []
         keys = [c[0] for c in cur.description]
         return [dict(zip(keys, r)) for r in rows]
-
-
