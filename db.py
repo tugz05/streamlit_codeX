@@ -170,3 +170,45 @@ def leaderboard(conn, join_code: str) -> List[Dict[str, Any]]:
         keys = [c[0] for c in cur.description]
         return [dict(zip(keys, r)) for r in rows]
 
+def insert_module(conn, record: Dict[str, Any]) -> None:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO MODULES
+            (TITLE, SUBJECT, LEVEL, DURATION, LEARNING_OUTCOMES, LESSONS, ACTIVITIES, RUBRIC, RESOURCES, ANSWERS, RAW_JSON)
+            SELECT %s, %s, %s, %s,
+                   PARSE_JSON(%s), PARSE_JSON(%s), PARSE_JSON(%s), PARSE_JSON(%s), PARSE_JSON(%s), PARSE_JSON(%s), PARSE_JSON(%s)
+            """,
+            (
+                record.get("title"),
+                record.get("subject"),
+                record.get("level"),
+                record.get("duration"),
+                json.dumps(record.get("learning_outcomes", [])),
+                json.dumps(record.get("lessons", [])),
+                json.dumps(record.get("activities", [])),
+                json.dumps(record.get("rubric", [])),
+                json.dumps(record.get("resources", [])),
+                json.dumps(record.get("answers", [])),
+                json.dumps(record.get("raw_json", {})),
+            ),
+        )
+    conn.commit()
+
+def list_modules(conn, limit: int = 50) -> List[Dict[str, Any]]:
+    with conn.cursor() as cur:
+        cur.execute(
+            f"""
+            SELECT TITLE, SUBJECT, LEVEL, DURATION, CREATED_AT
+            FROM MODULES
+            ORDER BY CREATED_AT DESC
+            LIMIT {int(limit)}
+            """
+        )
+        rows = cur.fetchall()
+        if not rows:
+            return []
+        keys = [c[0] for c in cur.description]
+        return [dict(zip(keys, r)) for r in rows]
+
+
