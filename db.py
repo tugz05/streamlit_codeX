@@ -80,6 +80,18 @@ def ensure_schema(conn) -> None:
             CREATED_AT TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
         )
     """)
+         cur.execute("""
+            CREATE TABLE IF NOT EXISTS SYLLABI (
+                ID STRING DEFAULT UUID_STRING(),
+                TITLE STRING,
+                LEVEL STRING,
+                WEEKS INTEGER,
+                MODALITY STRING,
+                INPUTS VARIANT,     -- the payload used to generate (for audit)
+                SYLLABUS VARIANT,   -- the generated structured syllabus
+                CREATED_AT TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
+            )
+        """)
 
 def insert_activity(conn, join_code: str, title: str, instruction: str, max_score: float, criteria: List[Dict[str, Any]]) -> None:
     with conn.cursor() as cur:
@@ -210,5 +222,6 @@ def list_modules(conn, limit: int = 50) -> List[Dict[str, Any]]:
             return []
         keys = [c[0] for c in cur.description]
         return [dict(zip(keys, r)) for r in rows]
+
 
 
