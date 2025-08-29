@@ -138,35 +138,35 @@ show_df_or_info(df_buckets, msg="No submissions available to compute grade bucke
 
 st.divider()
 
-# ---------- Rubric Difficulty ----------
-# ---------- Rubric Difficulty ----------
-st.subheader("Rubric Difficulty (lowest avg first)")
+# # ---------- Rubric Difficulty ----------
+# # ---------- Rubric Difficulty ----------
+# st.subheader("Rubric Difficulty (lowest avg first)")
 
-# Use FEEDBACK:"per_criterion" to explode rubric rows; avoid referencing a non-existent PER_CRITERION column
-sql_difficulty = """
-WITH flat AS (
-  SELECT
-      s.JOIN_CODE,
-      c.value:"criterion"::string AS criterion,
-      TRY_TO_NUMBER(c.value:"score")::float AS score
-  FROM SUBMISSIONS s,
-       LATERAL FLATTEN(INPUT => s.FEEDBACK:"per_criterion") c
-  {where_clause_flat}
-)
-SELECT
-    JOIN_CODE,
-    criterion,
-    AVG(score) AS avg_criterion_score,
-    COUNT(*)   AS samples
-FROM flat
-GROUP BY JOIN_CODE, criterion
-ORDER BY avg_criterion_score ASC
-"""
+# # Use FEEDBACK:"per_criterion" to explode rubric rows; avoid referencing a non-existent PER_CRITERION column
+# sql_difficulty = """
+# WITH flat AS (
+#   SELECT
+#       s.JOIN_CODE,
+#       c.value:"criterion"::string AS criterion,
+#       TRY_TO_NUMBER(c.value:"score")::float AS score
+#   FROM SUBMISSIONS s,
+#        LATERAL FLATTEN(INPUT => s.FEEDBACK:"per_criterion") c
+#   {where_clause_flat}
+# )
+# SELECT
+#     JOIN_CODE,
+#     criterion,
+#     AVG(score) AS avg_criterion_score,
+#     COUNT(*)   AS samples
+# FROM flat
+# GROUP BY JOIN_CODE, criterion
+# ORDER BY avg_criterion_score ASC
+# """
 
-diff_where_flat = "WHERE s.JOIN_CODE = %(JOIN_CODE)s" if join_code else ""
-df_diff = norm_cols(q(sql_difficulty.format(where_clause_flat=diff_where_flat), join_code if join_code else None))
+# diff_where_flat = "WHERE s.JOIN_CODE = %(JOIN_CODE)s" if join_code else ""
+# df_diff = norm_cols(q(sql_difficulty.format(where_clause_flat=diff_where_flat), join_code if join_code else None))
 
-show_df_or_info(df_diff, msg="No rubric-level signals yet.", height=420)
+# show_df_or_info(df_diff, msg="No rubric-level signals yet.", height=420)
 
 
 st.divider()
