@@ -5,6 +5,7 @@ from typing import Optional
 from config import get_config
 from db import get_snowflake_conn
 
+# Page setup
 st.set_page_config(page_title="📊 Analytics — AI Code Activities", page_icon="📊", layout="wide")
 st.title("📊 Analytics")
 
@@ -18,7 +19,8 @@ conn = get_snowflake_conn(cfg)
 # ---------- Helpers ----------
 @st.cache_data(ttl=120)
 def q(sql: str, join_code: Optional[str] = None) -> pd.DataFrame:
-    """Run a SQL query. If join_code is provided, safely param-bind it when the query uses a placeholder."""
+    """Run a SQL query. If join_code is provided and the SQL has a %(JOIN_CODE)s placeholder,
+    bind the parameter safely; otherwise execute as-is."""
     with conn.cursor() as cur:
         if join_code is not None and "%(JOIN_CODE)s" in sql:
             cur.execute(sql, {"JOIN_CODE": join_code})
@@ -75,7 +77,7 @@ funnel_where = "WHERE a.JOIN_CODE = %(JOIN_CODE)s" if join_code else ""
 df_funnel = norm_cols(q(sql_funnel.format(where_clause=funnel_where), join_code if join_code else None))
 show_df_or_info(df_funnel, msg="No activity funnel data yet.")
 
-# Small KPIs if single activity filtered
+# KPIs when single activity filtered
 if join_code and not df_funnel.empty:
     row = df_funnel.iloc[0]
     c1, c2, c3, c4 = st.columns(4)
@@ -138,36 +140,32 @@ show_df_or_info(df_buckets, msg="No submissions available to compute grade bucke
 
 st.divider()
 
-# # ---------- Rubric Difficulty ----------
-# # ---------- Rubric Difficulty ----------
-# st.subheader("Rubric Difficulty (lowest avg first)")
+# ---------- Rubric Difficulty ----------
+st.subheader("Rubric Difficulty (lowest avg first)")
 
-# # Use FEEDBACK:"per_criterion" to explode rubric rows; avoid referencing a non-existent PER_CRITERION column
-# sql_difficulty = """
-# WITH flat AS (
-#   SELECT
-#       s.JOIN_CODE,
-#       c.value:"criterion"::string AS criterion,
-#       TRY_TO_NUMBER(c.value:"score")::float AS score
-#   FROM SUBMISSIONS s,
-#        LATERAL FLATTEN(INPUT => s.FEEDBACK:"per_criterion") c
-#   {where_clause_flat}
-# )
-# SELECT
-#     JOIN_CODE,
-#     criterion,
-#     AVG(score) AS avg_criterion_score,
-#     COUNT(*)   AS samples
-# FROM flat
-# GROUP BY JOIN_CODE, criterion
-# ORDER BY avg_criterion_score ASC
-# """
-
-# diff_where_flat = "WHERE s.JOIN_CODE = %(JOIN_CODE)s" if join_code else ""
-# df_diff = norm_cols(q(sql_difficulty.format(where_clause_flat=diff_where_flat), join_code if join_code else None))
-
-# show_df_or_info(df_diff, msg="No rubric-level signals yet.", height=420)
-
+# IMPORTANT: use FEEDBACK:"per_criterion" JSON (no dependency on PER_CRITERION column)
+sql_difficulty = """
+WITH flat AS (
+  SELECT
+      s.JOIN_CODE,
+      c.value:"criterion"::string AS criterion,
+      TRY_TO_NUMBER(c.value:"score")::float AS score
+  FROM SUBMISSIONS s,
+       LATERAL FLATTEN(INPUT => s.FEEDBACK:"per_criterion") c
+  {where_clause_flat}
+)
+SELECT
+    JOIN_CODE,
+    criterion,
+    AVG(score) AS avg_criterion_score,
+    COUNT(*)   AS samples
+FROM flat
+GROUP BY JOIN_CODE, criterion
+ORDER BY avg_criterion_score ASC
+"""
+diff_where_flat = "WHERE s.JOIN_CODE = %(JOIN_CODE)s" if join_code else ""
+df_diff = norm_cols(q(sql_difficulty.format(where_clause_flat=diff_where_flat), join_code if join_code else None))
+show_df_or_info(df_diff, msg="No rubric-level signals yet.", height=420)
 
 st.divider()
 
